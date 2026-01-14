@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
-import { Loader2, AlertCircle, FileText, CheckCircle, Download } from 'lucide-react';
-import { generateMockReview } from '../services/mockData';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Loader2, AlertCircle, FileText, Download, RefreshCw } from 'lucide-react';
+import { apiService } from '../services/api';
 import { Review, ReviewStatus } from '../types';
 import { Button } from '../components/ui/Button';
 import { TermsView } from './dashboard/TermsView';
@@ -11,25 +11,67 @@ import clsx from 'clsx';
 
 export const ReviewDashboardPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const location = useLocation();
+  const navigate = useNavigate();
   const [review, setReview] = useState<Review | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'terms' | 'issues' | 'export'>('terms');
 
-  // Load data (simulate fetching existing review)
-  useEffect(() => {
-    if (id) {
-      // In a real app, this would be an API call
-      const state = location.state as { executedName: string; termSheetName?: string } | undefined;
-      const data = generateMockReview(id, state?.executedName || 'Executed.pdf', state?.termSheetName);
+  const fetchReview = async () => {
+    if (!id) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const data = await apiService.getReview(id);
       setReview(data);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to load review');
+    } finally {
+      setLoading(false);
     }
-  }, [id, location.state]);
+  };
 
-  if (!review) {
+  useEffect(() => {
+    fetchReview();
+  }, [id]);
+
+  if (loading) {
     return (
       <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center text-gray-400">
         <Loader2 className="w-10 h-10 mb-4 animate-spin text-primary2" />
         <p>Retrieving extraction results...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center text-gray-400">
+        <AlertCircle className="w-10 h-10 mb-4 text-red-400" />
+        <p className="text-red-400 mb-4">{error}</p>
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={() => navigate('/')}>
+            Go Home
+          </Button>
+          <Button onClick={fetchReview} leftIcon={<RefreshCw size={16} />}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!review) {
+    return (
+      <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center text-gray-400">
+        <AlertCircle className="w-10 h-10 mb-4 text-gray-500" />
+        <p>Review not found</p>
+        <Button variant="secondary" className="mt-4" onClick={() => navigate('/')}>
+          Go Home
+        </Button>
       </div>
     );
   }

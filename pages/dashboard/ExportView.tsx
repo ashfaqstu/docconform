@@ -1,57 +1,159 @@
-import React from 'react';
-import { Review } from '../../types';
+import React, { useState } from 'react';
+import { Review, SourceType } from '../../types';
 import { Button } from '../../components/ui/Button';
-import { FileDown, Shield, Clock } from 'lucide-react';
+import { FileDown, Shield, Clock, Loader2, Hash } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { apiService, API_BASE_URL } from '../../services/api';
 
 export const ExportView: React.FC<{ review: Review }> = ({ review }) => {
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'json' | 'csv' | null>(null);
+
+  // Calculate matches from side-by-side comparison
+  const approvedTerms = review.terms.filter(t => t.source === SourceType.APPROVED);
+  const executedTerms = review.terms.filter(t => t.source === SourceType.EXECUTED);
+  const matchCount = executedTerms.filter(t => t.isMatch !== false).length;
+  const mismatchCount = executedTerms.filter(t => t.isMatch === false).length;
+
   const chartData = [
-    { name: 'Terms Extracted', value: review.terms.length, color: '#2563EB' },
-    { name: 'Matches', value: review.terms.filter(t => t.isMatch !== false).length, color: '#10B981' },
-    { name: 'Issues', value: review.issues.length, color: review.issues.length > 0 ? '#EF4444' : '#E6EAF0' },
+    { name: 'Approved Terms', value: approvedTerms.length, color: '#2563EB' },
+    { name: 'Executed Terms', value: executedTerms.length, color: '#6366F1' },
+    { name: 'Matches', value: matchCount, color: '#10B981' },
+    { name: 'Mismatches', value: mismatchCount, color: mismatchCount > 0 ? '#EF4444' : '#E6EAF0' },
+    { name: 'Issues', value: review.issues.length, color: review.issues.length > 0 ? '#F59E0B' : '#E6EAF0' },
   ];
 
-  const downloadJSON = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(review, null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `review-${review.id}.json`);
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
+  const downloadJSON = async () => {
+    setIsExporting(true);
+    setExportFormat('json');
+    try {
+      // Use GET endpoint for JSON export
+      window.open(`${API_BASE_URL}/reviews/${review.id}/export.json/`, '_blank');
+    } catch (error) {
+      console.error('Export failed:', error);
+      // Fallback to local export
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(review, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", `review-${review.id}.json`);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    } finally {
+      setIsExporting(false);
+      setExportFormat(null);
+    }
+  };
+
+  const downloadCSV = async () => {
+    setIsExporting(true);
+    setExportFormat('csv');
+    try {
+      // Use GET endpoint for CSV export
+      window.open(`${API_BASE_URL}/reviews/${review.id}/export.csv/`, '_blank');
+    } catch (error) {
+      console.error('Export failed:', error);
+      // Fallback to local CSV generation
+      const headers = ['Key', 'Label', 'Approved Value', 'Executed Value', 'Status', 'Confidence'];
+      const approvedMap = new Map(approvedTerms.map(t => [t.key, t]));
+      
+      const rows = executedTerms.map(term => {
+        const approved = approvedMap.get(term.key);
+        return [
+          term.key,
+          term.label,
+          approved?.value || 'N/A',
+          term.value,
+          term.isMatch !== false ? 'MATCH' : 'MISMATCH',
+          term.confidence.toFixed(2)
+        ];
+      });
+      
+      const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+      const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", `review-${review.id}-terms.csv`);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    } finally {
+      setIsExporting(false);
+      setExportFormat(null);
+    }
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       {/* Left Col: Actions & Chart */}
       <div className="space-y-8">
+        {/* File Hashes */}
+        {(review.executedFileHash || review.termSheetFileHash) && (
+          <div className="bg-surface rounded-xl border border-white/5 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Hash size={16} className="text-primary2" />
+              <h3 className="text-sm font-medium text-gray-400 uppercase">File Integrity</h3>
+            </div>
+            <div className="space-y-3">
+              {review.executedFileHash && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Executed Agreement (SHA-256)</p>
+                  <code className="text-xs text-gray-300 font-mono bg-bg px-2 py-1 rounded block truncate">
+                    {review.executedFileHash}
+                  </code>
+                </div>
+              )}
+              {review.termSheetFileHash && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Term Sheet (SHA-256)</p>
+                  <code className="text-xs text-gray-300 font-mono bg-bg px-2 py-1 rounded block truncate">
+                    {review.termSheetFileHash}
+                  </code>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="bg-surface rounded-xl border border-white/5 p-6">
           <h3 className="text-lg font-medium text-white mb-4">Export Report</h3>
           <p className="text-sm text-gray-400 mb-6">
             Generate a regulator-ready package including the structured JSON data, a CSV summary of all terms, and the immutable audit log.
           </p>
           <div className="space-y-3">
-            <Button className="w-full justify-start" variant="secondary" leftIcon={<FileDown size={18} />} onClick={downloadJSON}>
-              Download JSON Package
+            <Button 
+              className="w-full justify-start" 
+              variant="secondary" 
+              leftIcon={isExporting && exportFormat === 'json' ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />} 
+              onClick={downloadJSON} 
+              disabled={isExporting}
+            >
+              {isExporting && exportFormat === 'json' ? 'Exporting...' : 'Download JSON Package'}
             </Button>
-            <Button className="w-full justify-start" variant="secondary" leftIcon={<FileDown size={18} />}>
-              Download CSV Summary
+            <Button 
+              className="w-full justify-start" 
+              variant="secondary" 
+              leftIcon={isExporting && exportFormat === 'csv' ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />} 
+              onClick={downloadCSV}
+              disabled={isExporting}
+            >
+              {isExporting && exportFormat === 'csv' ? 'Exporting...' : 'Download CSV Comparison'}
             </Button>
           </div>
         </div>
 
-        <div className="bg-surface rounded-xl border border-white/5 p-6 h-80">
+        <div className="bg-surface rounded-xl border border-white/5 p-6 h-96">
            <h3 className="text-sm font-medium text-gray-400 mb-4 uppercase">Extraction Summary</h3>
            <ResponsiveContainer width="100%" height="90%">
-             <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+             <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
                <XAxis type="number" hide />
-               <YAxis dataKey="name" type="category" width={100} tick={{fill: '#9CA3AF', fontSize: 12}} />
+               <YAxis dataKey="name" type="category" width={100} tick={{fill: '#9CA3AF', fontSize: 11}} />
                <Tooltip 
                  contentStyle={{ backgroundColor: '#0B1220', borderColor: '#374151', color: '#fff' }}
                  itemStyle={{ color: '#fff' }}
                  cursor={{fill: 'rgba(255,255,255,0.05)'}}
                />
-               <Bar dataKey="value" barSize={20} radius={[0, 4, 4, 0]}>
+               <Bar dataKey="value" barSize={18} radius={[0, 4, 4, 0]}>
                  {chartData.map((entry, index) => (
                    <Cell key={`cell-${index}`} fill={entry.color} />
                  ))}

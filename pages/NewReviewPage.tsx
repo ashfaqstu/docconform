@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UploadCloud, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { UploadCloud, FileText, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { simulateExtraction } from '../services/mockData';
+import { apiService } from '../services/api';
 import clsx from 'clsx';
 
 export const NewReviewPage: React.FC = () => {
@@ -18,18 +18,26 @@ export const NewReviewPage: React.FC = () => {
     }
   };
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleSubmit = async () => {
     if (!executedFile) return;
 
     setIsProcessing(true);
-    // Simulate backend processing
+    setError(null);
+    
     try {
-      const reviewId = crypto.randomUUID();
-      await simulateExtraction(reviewId, executedFile.name, termSheetFile?.name);
-      // Pass the mock data via state or just the ID if we had real backend
-      navigate(`/reviews/${reviewId}`, { state: { executedName: executedFile.name, termSheetName: termSheetFile?.name } });
-    } catch (error) {
-      console.error(error);
+      // Step 1: Create review with file uploads
+      const review = await apiService.createReview(executedFile, termSheetFile || undefined);
+      
+      // Step 2: Trigger processing/extraction
+      await apiService.processReview(review.id);
+      
+      // Step 3: Navigate to the review dashboard
+      navigate(`/reviews/${review.id}`);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to create review. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -43,6 +51,17 @@ export const NewReviewPage: React.FC = () => {
       </div>
 
       <div className="space-y-8">
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-center gap-3">
+            <AlertCircle className="text-red-400 flex-shrink-0" size={20} />
+            <p className="text-red-400 text-sm flex-1">{error}</p>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
         {/* Upload Card 1: Executed (Required) */}
         <div className="bg-surface border border-white/5 rounded-xl p-8">
           <div className="flex items-center justify-between mb-6">

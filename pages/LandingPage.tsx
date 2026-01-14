@@ -13,9 +13,9 @@ export const LandingPage: React.FC = () => {
         <div className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-primary2 to-accent opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]" />
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 pb-24 pt-10 sm:pb-32 lg:flex lg:px-8 lg:py-24 h-[calc(100vh-4rem)] flex-col justify-center">
+      <div className="mx-auto max-w-7xl px-6 pb-24 pt-10 sm:pb-32 lg:flex lg:flex-row lg:items-center lg:gap-x-10 lg:px-8 lg:py-24 min-h-[calc(100vh-4rem)]">
         <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-xl lg:flex-shrink-0 lg:pt-8">
-          <div className="mt-24 sm:mt-32 lg:mt-16">
+          <div className="mt-24 sm:mt-32 lg:mt-0">
             <span className="inline-flex items-center space-x-2 rounded-full bg-primary2/10 px-3 py-1 text-sm font-medium text-primary2 ring-1 ring-inset ring-primary2/20 mb-6">
               <span>Aligned with supervisory review practices</span>
             </span>
@@ -29,19 +29,16 @@ export const LandingPage: React.FC = () => {
           <p className="mt-4 text-sm leading-6 text-subtext border-l-2 border-white/10 pl-4 italic">
             Supervisors receive executed agreements as static PDFs; DocConform turns them into verifiable, review-ready records.
           </p>
-          <div className="mt-10 flex items-center gap-x-6">
+          <div className="mt-10">
             <Button size="lg" onClick={() => navigate('/reviews/new')} rightIcon={<ArrowRight size={16} />}>
               Start a Review
             </Button>
-            <a href="#" className="text-sm font-semibold leading-6 text-white hover:text-accent transition-colors">
-              Read the Whitepaper <span aria-hidden="true">→</span>
-            </a>
           </div>
         </div>
 
-        <div className="mx-auto mt-16 flex max-w-2xl sm:mt-24 lg:ml-10 lg:mr-0 lg:mt-0 lg:max-w-none lg:flex-none xl:ml-32">
-          <div className="max-w-3xl flex-none sm:max-w-5xl lg:max-w-none">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+        <div className="mx-auto mt-16 flex max-w-2xl lg:ml-10 lg:mr-0 lg:mt-0 lg:max-w-none lg:flex-1">
+          <div className="w-full">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-1">
                 <FeatureCard 
                   icon={<FileSearch className="text-accent" />}
                   title="Extraction"
