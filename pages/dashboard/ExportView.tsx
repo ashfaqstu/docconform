@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Review, SourceType } from '../../types';
 import { Button } from '../../components/ui/Button';
-import { FileDown, Shield, Clock, Loader2, Hash } from 'lucide-react';
+import { FileDown, Shield, Clock, Loader2, Hash, FileText } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { apiService, API_BASE_URL } from '../../services/api';
 
 export const ExportView: React.FC<{ review: Review }> = ({ review }) => {
   const [isExporting, setIsExporting] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'json' | 'csv' | null>(null);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'json' | 'csv' | null>(null);
 
   // Calculate matches from side-by-side comparison
   const approvedTerms = review.terms.filter(t => t.source === SourceType.APPROVED);
@@ -23,22 +23,27 @@ export const ExportView: React.FC<{ review: Review }> = ({ review }) => {
     { name: 'Issues', value: review.issues.length, color: review.issues.length > 0 ? '#F59E0B' : '#E6EAF0' },
   ];
 
+  const downloadPDF = async () => {
+    setIsExporting(true);
+    setExportFormat('pdf');
+    try {
+      // Use GET endpoint for PDF export
+      window.open(`${API_BASE_URL}/reviews/${review.id}/export.pdf/`, '_blank');
+    } catch (error) {
+      console.error('PDF export failed:', error);
+    } finally {
+      setIsExporting(false);
+      setExportFormat(null);
+    }
+  };
+
   const downloadJSON = async () => {
     setIsExporting(true);
     setExportFormat('json');
     try {
-      // Use GET endpoint for JSON export
       window.open(`${API_BASE_URL}/reviews/${review.id}/export.json/`, '_blank');
     } catch (error) {
       console.error('Export failed:', error);
-      // Fallback to local export
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(review, null, 2));
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `review-${review.id}.json`);
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
     } finally {
       setIsExporting(false);
       setExportFormat(null);
@@ -49,34 +54,9 @@ export const ExportView: React.FC<{ review: Review }> = ({ review }) => {
     setIsExporting(true);
     setExportFormat('csv');
     try {
-      // Use GET endpoint for CSV export
       window.open(`${API_BASE_URL}/reviews/${review.id}/export.csv/`, '_blank');
     } catch (error) {
       console.error('Export failed:', error);
-      // Fallback to local CSV generation
-      const headers = ['Key', 'Label', 'Approved Value', 'Executed Value', 'Status', 'Confidence'];
-      const approvedMap = new Map(approvedTerms.map(t => [t.key, t]));
-      
-      const rows = executedTerms.map(term => {
-        const approved = approvedMap.get(term.key);
-        return [
-          term.key,
-          term.label,
-          approved?.value || 'N/A',
-          term.value,
-          term.isMatch !== false ? 'MATCH' : 'MISMATCH',
-          term.confidence.toFixed(2)
-        ];
-      });
-      
-      const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
-      const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `review-${review.id}-terms.csv`);
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
     } finally {
       setIsExporting(false);
       setExportFormat(null);
@@ -118,27 +98,41 @@ export const ExportView: React.FC<{ review: Review }> = ({ review }) => {
         <div className="bg-surface rounded-xl border border-white/5 p-6">
           <h3 className="text-lg font-medium text-white mb-4">Export Report</h3>
           <p className="text-sm text-gray-400 mb-6">
-            Generate a regulator-ready package including the structured JSON data, a CSV summary of all terms, and the immutable audit log.
+            Generate a regulator-ready PDF report with executive summary, terms comparison, issues analysis, and audit trail.
           </p>
           <div className="space-y-3">
             <Button 
               className="w-full justify-start" 
-              variant="secondary" 
-              leftIcon={isExporting && exportFormat === 'json' ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />} 
-              onClick={downloadJSON} 
+              variant="primary" 
+              leftIcon={isExporting && exportFormat === 'pdf' ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />} 
+              onClick={downloadPDF} 
               disabled={isExporting}
             >
-              {isExporting && exportFormat === 'json' ? 'Exporting...' : 'Download JSON Package'}
+              {isExporting && exportFormat === 'pdf' ? 'Generating PDF...' : 'Download PDF Report'}
             </Button>
-            <Button 
-              className="w-full justify-start" 
-              variant="secondary" 
-              leftIcon={isExporting && exportFormat === 'csv' ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />} 
-              onClick={downloadCSV}
-              disabled={isExporting}
-            >
-              {isExporting && exportFormat === 'csv' ? 'Exporting...' : 'Download CSV Comparison'}
-            </Button>
+            <div className="border-t border-white/5 pt-3 mt-3">
+              <p className="text-xs text-gray-500 mb-2">Additional formats:</p>
+              <div className="flex gap-2">
+                <Button 
+                  className="flex-1 justify-center text-sm" 
+                  variant="secondary" 
+                  leftIcon={<FileDown size={16} />} 
+                  onClick={downloadJSON} 
+                  disabled={isExporting}
+                >
+                  JSON
+                </Button>
+                <Button 
+                  className="flex-1 justify-center text-sm" 
+                  variant="secondary" 
+                  leftIcon={<FileDown size={16} />} 
+                  onClick={downloadCSV}
+                  disabled={isExporting}
+                >
+                  CSV
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
 
