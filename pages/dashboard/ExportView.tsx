@@ -28,7 +28,7 @@ export const ExportView: React.FC<{ review: Review }> = ({ review }) => {
     setExportFormat('pdf');
     try {
       // Use GET endpoint for PDF export
-      window.open(`${API_BASE_URL}/reviews/${review.id}/export.pdf/`, '_blank');
+      window.open(`${API_BASE_URL}/reviews/${review.id}/export-pdf/`, '_blank');
     } catch (error) {
       console.error('PDF export failed:', error);
     } finally {
@@ -41,7 +41,7 @@ export const ExportView: React.FC<{ review: Review }> = ({ review }) => {
     setIsExporting(true);
     setExportFormat('json');
     try {
-      window.open(`${API_BASE_URL}/reviews/${review.id}/export.json/`, '_blank');
+      window.open(`${API_BASE_URL}/reviews/${review.id}/export-json/`, '_blank');
     } catch (error) {
       console.error('Export failed:', error);
     } finally {
@@ -54,7 +54,7 @@ export const ExportView: React.FC<{ review: Review }> = ({ review }) => {
     setIsExporting(true);
     setExportFormat('csv');
     try {
-      window.open(`${API_BASE_URL}/reviews/${review.id}/export.csv/`, '_blank');
+      window.open(`${API_BASE_URL}/reviews/${review.id}/export-csv/`, '_blank');
     } catch (error) {
       console.error('Export failed:', error);
     } finally {
